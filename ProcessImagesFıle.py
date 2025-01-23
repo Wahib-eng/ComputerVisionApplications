@@ -1,0 +1,64 @@
+import os
+import cv2
+from ultralytics import YOLO
+
+# Load the pre-trained YOLO model
+model = YOLO(r'C:\Users\intern.rd\OneDrive - BIZE PROJE GELISTIRME A.S\Desktop\Projects\models\best_catlat_yolo11l.pt') 
+
+# Input folder containing the images to process
+input_folder = r'C:\Users\intern.rd\OneDrive - BIZE PROJE GELISTIRME A.S\Desktop\Projects\Datasets\tst'  # Replace with the path to the folder containing your images
+output_folder = 'Catlaklar'
+os.makedirs(output_folder, exist_ok=True)  # Create the output folder if it doesn't exist
+
+# Define colors for different classes
+red_color = (0, 0, 255)    # Red for class 
+
+# Process each image in the input folder
+for filename in os.listdir(input_folder):
+    if filename.endswith(('.jpg', '.jpeg', '.png', '.bmp')):  # Check if the file is an image
+        image_path = os.path.join(input_folder, filename)
+        frame = cv2.imread(image_path)  # Read the image
+
+        if frame is None:
+            print(f"Error: Could not read image {image_path}. Skipping...")
+            continue
+
+        # Run YOLO model on the image
+        results = model(frame)
+
+        # Process the results
+        for result in results:
+            boxes = result.boxes  # Bounding boxes
+
+            # Loop through detected boxes and labels
+            for box in boxes:
+                x1, y1, x2, y2 = map(int, box.xyxy[0])  # Bounding box coordinates
+                label = int(box.cls)  # Object label (class index)
+                score = box.conf.item()  # Convert Tensor to float using .item()
+
+                # Check if the confidence score is above the threshold (50%)
+                if score < 0.5:
+                    continue  # Skip this detection if confidence is less than 50%
+
+                # Set color based on class
+                if label == 0:  # Class 0
+                    box_color = red_color
+                
+
+                # Get the class name (optional, based on your dataset)
+                class_name = model.names[label]
+
+                # Draw the bounding box with the selected color
+                cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 2)
+
+                # Put the label text with the selected color
+                cv2.putText(frame, f'{class_name} {score:.2f}', (x1, y1 - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.9, box_color, 2)
+
+        # Save the processed image to the output folder
+        output_image_path = os.path.join(output_folder, f'processed_{filename}')
+        cv2.imwrite(output_image_path, frame)  # Save the image with bounding boxes
+
+        print(f'Processed {filename}, results saved to {output_image_path}')
+
+print('Processing complete.')
